@@ -1,20 +1,61 @@
 #include "Game.h"
 
+// avem 16 imagini diferite in total
+constexpr int NUMTILES = 7;
 
-constexpr int NUMTILES = 16;
+// dimensiunea uni tile este 140x140 pixeli
+constexpr int TILE_WIDTH = 140;
+constexpr int TILE_HEIGHT = TILE_WIDTH;
+
+// o sa avem o bara de scor jos
+constexpr int SCORE_OFFSET = 90;
+
+// daca doriti, puteti sa il scalati diferit
+constexpr float SCALE_X = 0.5f;
+constexpr float SCALE_Y = SCALE_X;
+
+
+// pozitia de la care incepe tabla 
+constexpr float START_X = 100;
+constexpr float START_Y = 100;
+
+
+// dimensiunea actuala a tablei tinand cont de numarul de piese, dimensiunea unei piese, si coeficientul de scalare
+const int BOARD_SIZE_X_PIXELS = BOARD_SIZE_X * TILE_WIDTH * SCALE_X;
+const int BOARD_SIZE_Y_PIXELS = BOARD_SIZE_Y * TILE_HEIGHT * SCALE_Y;
+
+
+// padding intre tiles ca sa nu fie inghesuite
+const int PADDING = 2; // pixeli
 
 // aici initializam toate variabilele din clasa
 // spre exemplu, asset-urile nu dorim sa le incarcam de pe disc la fiecare frame, 
 // ar fi costisitor, si am solicita discul degeaba
 Game::Game(unsigned int width, unsigned int height, std::string title) : window(sf::VideoMode(width, height), title)
 {
+    srand(time(NULL));
+
+    // jocul va avea 60 FPS si pozitia ferestrei este setata mai jos
+    constexpr int FRAMES_PER_SECOND = 1;
     window.setFramerateLimit(FRAMES_PER_SECOND);
     window.setPosition(sf::Vector2i(WINDOW_POS_X, WINDOW_POS_Y));
+
+    // aici vom memora toate piesele, si stim ca in cadrul jocului sunt NUMTILES piese, prealocam memoria
+    tiles.resize(NUMTILES);
+
+    shouldUpdateState = true;
+
+    level = 1;
+    // incarcam de pe disc toate imaginile necesare in joc
     LoadAssets();
+
+    // pregatim tabla pentru nivelul 1
+    SetupBoard();
 }
 
 void Game::Play(void)
 {
+
     while (window.isOpen() == true)
     {
         // intre frame-uri, utilizatorul face diverse actiuni cu fereastra (click-uri de mouse, tastatura, etc)
@@ -43,35 +84,93 @@ void Game::HandleEvents(void)
                 window.close();
                 break;
             }
+            case sf::Event::Resized:
+            {
+                break;
+            }
             default:
             {
-                std::cerr << "Unhandled event" << EventTypeToString(event.type) << std::endl;
+                // std::cerr << "Unhandled event" << EventTypeToString(event.type) << std::endl;
+                break;
             }
         }
     }
 }
 
-// aici punem logica, ce se schimba de la frame la frame
+// aici punem logica, ce se schimba de la frame la frame (daca s-a schimbat ceva)
 void Game::UpdateGameState(void)
 {
+    if (shouldUpdateState == false)
+    {
+        return;
+    }
 
+
+    shouldUpdateState = false;
 }
+
+void Game::SetupBoard(void)
+{
+    // pozitia curenta a fiecarei piese de pe tabla
+    sf::Vector2f currentTilePosition;
+    for (int i = 0; i < BOARD_SIZE_X; i++)
+    {
+        for (int j = 0; j < BOARD_SIZE_Y; j++)
+        {
+            currentTilePosition.x = START_X + i * TILE_WIDTH  * SCALE_X + i * PADDING;
+            currentTilePosition.y = START_Y + j * TILE_HEIGHT * SCALE_Y + j * PADDING;
+
+            int index = rand() % NUMTILES;
+            board[i][j] = tiles[index];
+            board[i][j].position = sf::Vector2f(currentTilePosition.x, currentTilePosition.y);
+            board[i][j].scale = sf::Vector2f(SCALE_X, SCALE_Y);
+            board[i][j].sprite.setPosition(board[i][j].position);
+            board[i][j].sprite.setScale(board[i][j].scale);
+        }
+    }
+}
+
+// aici desenam fiecare frame
+void Game::Render(void)
+{
+    // stergem ecranul pentru a desena de la zero noul frame
+    ClearWindow();
+
+    // desenam sprite-urile pe ecran, incepand cu fundalul
+    DrawBackground();
+
+    // desenam tabla de joc
+    DisplayBoard();
+
+    // afisam continutul desenat in fereastra
+    DisplayWindow();
+}
+
+void Game::DisplayBoard(void)
+{
+    for (int i = 0; i < BOARD_SIZE_X; i++)
+    {
+        for (int j = 0; j < BOARD_SIZE_Y; j++)
+        {
+            window.draw(board[i][j].sprite);
+        }
+    }
+};
+
 
 // aici incarcam asset-urile de pe disc in variabile (RAM) la initializarea jocului
 void Game::LoadAssets(void)
 {
-    std::string backgroundSpritePath = "assets/images/background.png";
-    LoadGameObjectFromFile(backgroundSpritePath, background);
+    std::string backgroundSpritePath = "assets/images/background.jpg";
+    LoadGameObjectFromFile(backgroundSpritePath, backgroundImage);
 
+    char currentTilePath[64];
     for (int i = 0; i < NUMTILES; i++)
     {
-        char tilePath[128];
-        sprintf_s(tilePath, "assets/tiles/tile%02d.png", i);
-        std::cout << tilePath << std::endl;
-        std::string tilePathStr = tilePath;
-        GameObject tile;
-        LoadGameObjectFromFile(std::string(tilePath), tile);
-        tiles.push_back(tile);
+        //GameObject currentTile;
+        sprintf_s(currentTilePath, "assets/tiles/tile%02d.png", i);
+        LoadGameObjectFromFile(currentTilePath, tiles[i]);
+        //tiles.push_back(currentTile);
     }
 }
 
@@ -87,23 +186,11 @@ void Game::LoadGameObjectFromFile(const std::string& filePath, GameObject& gameO
     gameObject.sprite.setTexture(gameObject.texture);
 }
 
-// aici desenam fiecare frame
-void Game::Render(void)
-{
-    // stergem ecranul pentru a desena de la zero noul frame
-    ClearWindow();
-
-    // desenam sprite-urile pe ecran
-    DrawBackground();
-
-    // afisam continutul desenat in fereastra
-    DisplayWindow();
-}
-
 void Game::DrawBackground(void)
 {
-    window.draw(background.sprite);
+    window.draw(backgroundImage.sprite);
 }
+
 
 // afisam ce am desenat
 void Game::DisplayWindow(void)
