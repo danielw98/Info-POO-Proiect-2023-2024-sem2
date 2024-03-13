@@ -1,5 +1,7 @@
 #ifndef _GAME_H_
 #define _GAME_H_
+// nu vrem warning-uri precum sprintf este unsafe, desi e o idee proasta, dam disable la warning-uri pt functii unsafe
+#define _CRT_SECURE_NO_WARNINGS
 // TODO: de gasit solutie cu script batch pt VS Code, desi ar fi util debugger-ul la o aplicatie de genul
 #include <SFML/Graphics.hpp>
 #include <iostream>

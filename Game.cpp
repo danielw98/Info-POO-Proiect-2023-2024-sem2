@@ -1,5 +1,4 @@
 #include "Game.h"
-
 // avem 16 imagini diferite in total
 constexpr int NUMTILES = 7;
 
