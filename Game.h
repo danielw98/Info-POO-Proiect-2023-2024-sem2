@@ -1,6 +1,6 @@
 #ifndef _GAME_H_
 #define _GAME_H_
-
+// TODO: de gasit solutie cu script batch pt VS Code, desi ar fi util debugger-ul la o aplicatie de genul
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <vector>

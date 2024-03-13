@@ -188,7 +188,7 @@ void Game::LoadAssets(void)
     char currentTilePath[64];
     for (int i = 0; i < NUMTILES; i++)
     {
-        sprintf_s(currentTilePath, "assets/tiles/tile%02d.png", i);
+        sprintf(currentTilePath, "assets/tiles/tile%02d.png", i);
         LoadGameObjectFromFile(currentTilePath, tiles[i]);
     }
 }
