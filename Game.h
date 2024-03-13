@@ -11,6 +11,7 @@ constexpr int WINDOW_POS_Y = 50;
 constexpr int BOARD_SIZE_X = 8;
 constexpr int BOARD_SIZE_Y = 9;
 
+
 class Game {
 private:
     struct GameObject {
@@ -24,7 +25,6 @@ private:
     sf::RenderWindow window;
 
     std::vector<GameObject> tiles;
-
     GameObject backgroundImage;
     GameObject scoreBar;
     GameObject board[BOARD_SIZE_X][BOARD_SIZE_Y];

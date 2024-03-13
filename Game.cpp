@@ -26,7 +26,7 @@ const int BOARD_SIZE_Y_PIXELS = BOARD_SIZE_Y * TILE_HEIGHT * SCALE_Y;
 
 
 // padding intre tiles ca sa nu fie inghesuite
-const int PADDING = 2; // pixeli
+const int PADDING = 5; // pixeli
 
 // aici initializam toate variabilele din clasa
 // spre exemplu, asset-urile nu dorim sa le incarcam de pe disc la fiecare frame, 
@@ -36,7 +36,7 @@ Game::Game(unsigned int width, unsigned int height, std::string title) : window(
     srand(time(NULL));
 
     // jocul va avea 60 FPS si pozitia ferestrei este setata mai jos
-    constexpr int FRAMES_PER_SECOND = 1;
+    constexpr int FRAMES_PER_SECOND = 30;
     window.setFramerateLimit(FRAMES_PER_SECOND);
     window.setPosition(sf::Vector2i(WINDOW_POS_X, WINDOW_POS_Y));
 
@@ -88,6 +88,26 @@ void Game::HandleEvents(void)
             {
                 break;
             }
+            case sf::Event::MouseButtonPressed:
+            {
+                sf::Event::MouseButtonEvent mouseEvent = event.mouseButton;
+                if (mouseEvent.button == sf::Mouse::Button::Left)
+                {
+                    printf("Left Mouse button pressed at (%d, %d)\n", mouseEvent.x, mouseEvent.y);
+                    shouldUpdateState = true;
+                }
+                break;
+            }
+            case sf::Event::KeyPressed:
+            {
+                sf::Event::KeyEvent keyEvent = event.key;
+
+                if (keyEvent.code == sf::Keyboard::Key::A)
+                {
+                    std::cout << "Am apasat tasta a" << std::endl;
+                }
+                break;
+            }
             default:
             {
                 // std::cerr << "Unhandled event" << EventTypeToString(event.type) << std::endl;
@@ -105,6 +125,7 @@ void Game::UpdateGameState(void)
         return;
     }
 
+    SetupBoard();
 
     shouldUpdateState = false;
 }
@@ -167,10 +188,8 @@ void Game::LoadAssets(void)
     char currentTilePath[64];
     for (int i = 0; i < NUMTILES; i++)
     {
-        //GameObject currentTile;
         sprintf_s(currentTilePath, "assets/tiles/tile%02d.png", i);
         LoadGameObjectFromFile(currentTilePath, tiles[i]);
-        //tiles.push_back(currentTile);
     }
 }
 
