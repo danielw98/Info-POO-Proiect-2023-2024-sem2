@@ -1,50 +1,59 @@
 #include "Game.h"
-// avem 16 imagini diferite in total
+// avem 7 imagini diferite in total
 constexpr int NUMTILES = 7;
 
-// dimensiunea uni tile este 140x140 pixeli
+// dimensiunea unui tile este 140x140 pixeli
 constexpr int TILE_WIDTH = 140;
 constexpr int TILE_HEIGHT = TILE_WIDTH;
 
 // o sa avem o bara de scor jos
 constexpr int SCORE_OFFSET = 90;
 
-// daca doriti, puteti sa il scalati diferit
+// daca doriti, puteti sa il scsalati diferit
 constexpr float SCALE_X = 0.5f;
 constexpr float SCALE_Y = SCALE_X;
 
 
 // pozitia de la care incepe tabla 
-constexpr float START_X = 100;
-constexpr float START_Y = 100;
+constexpr int START_X = 100;
+constexpr int START_Y = 100;
 
 
 // dimensiunea actuala a tablei tinand cont de numarul de piese, dimensiunea unei piese, si coeficientul de scalare
-const int BOARD_SIZE_X_PIXELS = BOARD_SIZE_X * TILE_WIDTH * SCALE_X;
-const int BOARD_SIZE_Y_PIXELS = BOARD_SIZE_Y * TILE_HEIGHT * SCALE_Y;
+constexpr int BOARD_SIZE_X_PIXELS = static_cast<int>(BOARD_SIZE_X * TILE_WIDTH * SCALE_X);
+constexpr int BOARD_SIZE_Y_PIXELS = static_cast<int>(BOARD_SIZE_Y * TILE_HEIGHT * SCALE_Y);
 
 
 // padding intre tiles ca sa nu fie inghesuite
-const int PADDING = 5; // pixeli
+constexpr int PADDING = 5; // pixeli
+
+// culoare val max
+constexpr int RGBA_MAX[4] = { 255, 255, 255, 255 };
 
 // aici initializam toate variabilele din clasa
 // spre exemplu, asset-urile nu dorim sa le incarcam de pe disc la fiecare frame, 
 // ar fi costisitor, si am solicita discul degeaba
-Game::Game(unsigned int width, unsigned int height, std::string title) : window(sf::VideoMode(width, height), title)
+Game::Game(unsigned int posX, unsigned int posY, unsigned int width, unsigned int height, std::string title) 
+    : window(sf::VideoMode(width, height), title)
 {
+    // PRNG cu seed timpul curent pentru a avea o tabla de joc diferita mereu
     srand(time(NULL));
 
     // jocul va avea 60 FPS si pozitia ferestrei este setata mai jos
     constexpr int FRAMES_PER_SECOND = 30;
     window.setFramerateLimit(FRAMES_PER_SECOND);
-    window.setPosition(sf::Vector2i(WINDOW_POS_X, WINDOW_POS_Y));
+    window.setPosition(sf::Vector2i(posX, posY));
 
     // aici vom memora toate piesele, si stim ca in cadrul jocului sunt NUMTILES piese, prealocam memoria
     tiles.resize(NUMTILES);
 
-    shouldUpdateState = true;
-
+    shouldUpdateState = false;
+    isSwapping = false;
+    isMovingAnimationOn = false;
     level = 1;
+    score = 0;
+    numClicks = 0;
+    boardRect = sf::IntRect(START_X, START_Y, NUMTILES*TILE_WIDTH, NUMTILES*TILE_HEIGHT);
     // incarcam de pe disc toate imaginile necesare in joc
     LoadAssets();
 
@@ -54,7 +63,6 @@ Game::Game(unsigned int width, unsigned int height, std::string title) : window(
 
 void Game::Play(void)
 {
-
     while (window.isOpen() == true)
     {
         // intre frame-uri, utilizatorul face diverse actiuni cu fereastra (click-uri de mouse, tastatura, etc)
@@ -89,15 +97,28 @@ void Game::HandleEvents(void)
             }
             case sf::Event::MouseButtonPressed:
             {
-                sf::Event::MouseButtonEvent mouseEvent = event.mouseButton;
-                if (mouseEvent.button == sf::Mouse::Button::Left)
+                sf::Event::MouseButtonEvent mouseButtonEvent = event.mouseButton;
+                sf::Vector2i mouseCrtPos = sf::Vector2i(mouseButtonEvent.x, mouseButtonEvent.y);
+                if (mouseButtonEvent.button == sf::Mouse::Button::Left)
                 {
-                    printf("Left Mouse button pressed at (%d, %d)\n", mouseEvent.x, mouseEvent.y);
+                    // am dat click in afara tablei, n-are sens sa facem nimic
+                    if (boardRect.contains(mouseCrtPos) == false)
+                    {
+                        isSwapping = false;
+                        numClicks = 0;
+                        break;
+                    }
+
                     shouldUpdateState = true;
+
+                    mousePos = mouseCrtPos;
+                    
+                    if (isSwapping == false && isMovingAnimationOn == false)
+                        numClicks++;
                 }
                 break;
             }
-            case sf::Event::KeyPressed:
+            /*case sf::Event::KeyPressed:
             {
                 sf::Event::KeyEvent keyEvent = event.key;
 
@@ -106,7 +127,7 @@ void Game::HandleEvents(void)
                     std::cout << "Am apasat tasta a" << std::endl;
                 }
                 break;
-            }
+            }*/
             default:
             {
                 // std::cerr << "Unhandled event" << EventTypeToString(event.type) << std::endl;
@@ -120,34 +141,16 @@ void Game::HandleEvents(void)
 void Game::UpdateGameState(void)
 {
     if (shouldUpdateState == false)
-    {
         return;
-    }
 
-    SetupBoard();
+    MouseClickUpdateCallback();
+    MatchFinding(); // OK
+    //MovingAnimationOnSwap(); // TODO: de verificat
+    //DeletingAnimation(); // TODO: de verificat
+    //CheckNoMatch();
+    //UpdateBoard();
 
     shouldUpdateState = false;
-}
-
-void Game::SetupBoard(void)
-{
-    // pozitia curenta a fiecarei piese de pe tabla
-    sf::Vector2f currentTilePosition;
-    for (int i = 0; i < BOARD_SIZE_X; i++)
-    {
-        for (int j = 0; j < BOARD_SIZE_Y; j++)
-        {
-            currentTilePosition.x = START_X + i * TILE_WIDTH  * SCALE_X + i * PADDING;
-            currentTilePosition.y = START_Y + j * TILE_HEIGHT * SCALE_Y + j * PADDING;
-
-            int index = rand() % NUMTILES;
-            board[i][j] = tiles[index];
-            board[i][j].position = sf::Vector2f(currentTilePosition.x, currentTilePosition.y);
-            board[i][j].scale = sf::Vector2f(SCALE_X, SCALE_Y);
-            board[i][j].sprite.setPosition(board[i][j].position);
-            board[i][j].sprite.setScale(board[i][j].scale);
-        }
-    }
 }
 
 // aici desenam fiecare frame
@@ -160,13 +163,42 @@ void Game::Render(void)
     DrawBackground();
 
     // desenam tabla de joc
-    DisplayBoard();
+    DrawBoard();
 
     // afisam continutul desenat in fereastra
     DisplayWindow();
 }
 
-void Game::DisplayBoard(void)
+void Game::SetupBoard(void)
+{
+    // pozitia curenta a fiecarei piese de pe tabla
+    sf::Vector2f currentTilePosition;
+    for (int i = 0; i < BOARD_SIZE_X; i++)
+    {
+        for (int j = 0; j < BOARD_SIZE_Y; j++)
+        {
+            int index;
+            currentTilePosition.x = START_X + i * (TILE_WIDTH  * SCALE_X + PADDING);
+            currentTilePosition.y = START_Y + j * (TILE_HEIGHT * SCALE_Y + PADDING);
+            while (true)
+            {
+                index = rand() % NUMTILES;
+                if (IsCollisionOnCreation(tiles[index], i, j) == false)
+                    break;
+            }
+            board[i][j] = tiles[index];
+            board[i][j].sprite.setScale(sf::Vector2f(SCALE_X, SCALE_Y));
+            board[i][j].sprite.setPosition(currentTilePosition);
+            board[i][j].pieceType = static_cast<PieceType>(index);
+            board[i][j].pieceModifierType = PieceModifierType::PIECEMODIFIER_NONE;
+            board[i][j].isMatch = false;
+        }
+    }
+}
+
+
+
+void Game::DrawBoard(void)
 {
     for (int i = 0; i < BOARD_SIZE_X; i++)
     {
@@ -177,6 +209,138 @@ void Game::DisplayBoard(void)
     }
 };
 
+
+void Game::MovingAnimationOnSwap(void)
+{
+    float dx, dy;
+    isMovingAnimationOn = false;
+    for (int i = 0; i < BOARD_SIZE_X; i++)
+    {
+        for (int j = 0; j < BOARD_SIZE_Y; j++)
+        {
+            GameTile& tile = board[i][j];
+
+            if (tile.isMatch == false)
+                continue;
+
+            sf::Vector2f position = tile.sprite.getPosition();
+            for (int speed = 0; speed < 4; speed++)
+            {
+                dx = position.x - i * TILE_WIDTH;
+                dy = position.y - j * TILE_HEIGHT;
+                if (dx != 0)
+                    position.x -= dx;
+                if (dy != 0)
+                    position.y -= dy;
+            }
+            tile.sprite.setPosition(position);
+            if (dx == 0 && dy == 0)
+                isMovingAnimationOn = false;
+        }
+    }
+}
+
+// trebuie sa verificam daca piesa pusa provoaca un "combo" in stanga sau in sus,
+// deoarece in dreapta si in jos nu este inca populata tabla de joc
+bool Game::IsCollisionOnCreation(GameTile& tile, int i, int j) const
+{
+    // verificam coliziune deasupra, cele 2 piese de deasupra de pe coloana curenta 
+    // sa nu aiba aceeasi valoare precum piesa pusa
+    if (i >= 2)
+    {
+        if (board[i-2][j].pieceType == tile.pieceType && board[i-1][j].pieceType == tile.pieceType)
+            return true;
+    }
+    // verificam coliziune in stanga, cele 2 piese din stanga de pe linia curenta
+    // sa nu aiba aceeasi valoare precum piesa pusa
+    if (j >= 2)
+    {
+        if (board[i][j-2].pieceType == tile.pieceType && board[i][j-1].pieceType == tile.pieceType)
+            return true;
+    }
+    return false;
+}
+
+bool Game::CheckCombo(GameTile& tile, int x1, int y1, int x0, int y0) const
+{
+    // Luam piesa curenta in considerare la combo
+    int comboCount = 1;
+    PieceType type = tile.pieceType;
+    printf("Tipul piesei in checkCombo: %d\n", type);
+    // Verificam combo orizontal la stanga si la dreapta cu 2 piese (daca exista)
+    printf("La stanga: ");
+    int cnt = 0;
+    for (int i = x1 - 1; i >= x1 - 2 && i >= 0; i--)
+    {
+        if (i == x0 && board[x1][y1].pieceType != type)
+            break;
+        if (board[i][y1].pieceType != type)
+            break;
+     
+        
+        printf("(%d, %d) = %d\t", y1, i, type);
+        comboCount++;
+        cnt++;
+    }
+    if (cnt == 0)
+        printf("Nimic\n");
+    cnt = 0;
+    printf("\nLa dreapta: ");
+    for (int i = x1 + 1; i <= x1 + 2 && i < BOARD_SIZE_X; i++)
+    {
+        if (i == x0 && board[x1][y1].pieceType != type)
+            break;
+        if (board[i][y1].pieceType != type)
+            break;
+        printf("(%d, %d) = %d\t", y1, i, type);
+        comboCount++;
+        cnt++;
+    }
+    if (cnt == 0)
+        printf("Nimic\n");
+    cnt = 0;
+    if (comboCount >= 3)
+    {
+        printf("\n");
+        return true; // Am gasit combo orizontal
+    }
+    
+
+    // resetare contor
+    comboCount = 1;
+
+    // Verificam combo vertical in sus si in jos cu 2 piese (daca exista)
+    printf("\nSus: ");
+    for (int j = y1 - 1; j >= y1 - 2 && j >= 0; j--)
+    {
+        if (j == y0 && board[x1][y1].pieceType != type)
+            break;
+        if (board[x1][j].pieceType != type)
+            break;
+        printf("(%d, %d) = %d\t", j, x1, type);
+        comboCount++;
+        cnt++;
+    }
+    if (cnt == 0)
+        printf("Nimic\n");
+    cnt = 0;
+    printf("\nJos: ");
+    for (int j = y1 + 1; j <= y1 + 2 && j < BOARD_SIZE_Y; j++)
+    {
+        if (j == y0 && board[x1][y1].pieceType != type)
+            break;
+        if (board[x1][j].pieceType != type)
+            break;
+        printf("(%d, %d) = %d\t", j, x1, type);
+        comboCount++;
+        cnt++;
+    }
+    printf((cnt == 0) ? "nimic\n" : "\n");
+    if (comboCount >= 3) 
+        return true; // Am gasit combo orizontal
+
+    return false; // Nu am gasit combo
+}
 
 // aici incarcam asset-urile de pe disc in variabile (RAM) la initializarea jocului
 void Game::LoadAssets(void)
@@ -189,6 +353,8 @@ void Game::LoadAssets(void)
     {
         sprintf(currentTilePath, "assets/tiles/tile%02d.png", i);
         LoadGameObjectFromFile(currentTilePath, tiles[i]);
+        tiles[i].pieceModifierType = PieceModifierType::PIECEMODIFIER_NONE;
+        tiles[i].pieceType = static_cast<PieceType>(i);
     }
 }
 
@@ -250,4 +416,146 @@ std::string Game::EventTypeToString(sf::Event::EventType& eventType)
     case sf::Event::SensorChanged:          return "SensorChanged";
     default:                                return "UnknownEventType";
     }
+}
+
+
+void Game::MouseClickUpdateCallback(void)
+{
+
+    // currentTilePosition.x = START_X + i * TILE_WIDTH  * SCALE_X + i * PADDING;
+    // currentTilePosition.y = START_Y + j * TILE_HEIGHT * SCALE_Y + j * PADDING;
+    // aflam prin formula inversa
+    int x = (mousePos.x - START_X) / (SCALE_X * TILE_WIDTH  + PADDING);
+    int y = (mousePos.y - START_Y) / (SCALE_Y * TILE_HEIGHT + PADDING);
+
+    printf("Click (%d, %d) - %d \n", y, x, board[x][y].pieceType);
+    if (numClicks == 1)
+    {
+        x0 = x;
+        y0 = y;
+    }
+    if (numClicks == 2 && (abs(x - x0) + abs(y - y0) == 1))
+    {
+        x1 = x;
+        y1 = y;
+        if (CheckCombo(board[x0][y0], x1, y1, x0, y0) == true)
+        {
+            printf("Trebuie swap (%d, %d) cu (%d, %d)\n", y0, x0, y1, x1);
+            //std::swap(board[x0][y0], board[x1][y1]);
+            //isSwapping = true;
+        }
+        numClicks = 0;
+    }
+    
+}
+
+void Game::MatchFinding(void)
+{
+    for (int i = 0; i < BOARD_SIZE_X; i++)
+    {
+        for (int j = 0; j < BOARD_SIZE_Y; j++)
+        {
+            const GameTile& tile = board[i][j];
+
+            if (i == BOARD_SIZE_X - 1 || j == BOARD_SIZE_Y - 1)
+                continue;
+            if (i == 0 || j == 0)
+                continue;
+
+            if (tile.pieceType == board[i-1][j].pieceType && tile.pieceType == board[i+1][j].pieceType)
+            {
+                for (int offsetX = -1; offsetX <= 1; offsetX++)
+                    board[i+offsetX][j].isMatch = true;
+            }
+            if (tile.pieceType == board[i][j-1].pieceType && tile.pieceType == board[i][j+1].pieceType)
+            {
+                for (int offsetY = -1; offsetY <= 1; offsetY++)
+                    board[i][j+offsetY].isMatch == true;
+            }
+        }
+    }
+}
+
+void Game::DeletingAnimation(void)
+{
+    if (isMovingAnimationOn == true)
+        return;
+
+    int dAlpha = 10;
+    for (int i = 0; i < BOARD_SIZE_X; i++)
+    {
+        for (int j = 0; j < BOARD_SIZE_Y; j++)
+        {
+            if(board[i][j].isMatch == true && board[i][j].alpha > dAlpha)
+            {
+                sf::Color color = board[i][j].sprite.getColor();
+                color.a -= dAlpha;
+                board[i][j].sprite.setColor(color);
+                isMovingAnimationOn = true;
+            }
+        }
+    }
+}
+
+// TODO: De actualizat scorul mai "destept" decat cu doar 1 per piesa
+void Game::CheckNoMatch(void)
+{
+    int currentMoveScore = 0;
+    for (int i = 0; i < BOARD_SIZE_X; i++)
+    {
+        for (int j = 0; j < BOARD_SIZE_Y; j++)
+        {
+            currentMoveScore += (board[i][j].isMatch == true) ? 1 : 0;
+        }
+    }
+    if (isSwapping == true && isMovingAnimationOn == false)
+    {
+        if (currentMoveScore != 0)
+        {
+            std::swap(board[x0][y0], board[x1][y1]);
+        }
+        isSwapping = false;
+    }
+}
+
+void Game::UpdateBoard(void)
+{
+    if (shouldUpdateState == false)
+        return;
+    if (isMovingAnimationOn == false)
+        return;
+
+    for (int i = 0; i < BOARD_SIZE_X; i++)
+    {
+        for (int j = 0; j < BOARD_SIZE_Y; j++)
+        {
+            if (board[i][j].isMatch == false)
+                continue;
+
+            for (int n = i; n > 0; n--)
+            {
+                if (board[n][j].isMatch == false)
+                {
+                    std::swap(board[n][j], board[i][j]);
+                    break;
+                }
+            }
+        }
+    }
+    for (int j = 0; j < BOARD_SIZE_Y; j++)
+    {
+        for (int i = BOARD_SIZE_X - 1, n = 0; i >= 0; i--)
+        {
+            if (board[i][j].isMatch == true)
+            {
+                sf::Vector2f pos = board[i][j].sprite.getPosition();
+                board[i][j].pieceType = static_cast<PieceType>(rand() % NUMTILES);
+                board[i][j].isMatch = false;
+                board[i][j].alpha = RGBA_MAX[3];
+                pos.y = -TILE_HEIGHT * n++;
+                board[i][j].sprite.setPosition(pos);
+            }
+        }
+    }
+    shouldUpdateState = false;
 }

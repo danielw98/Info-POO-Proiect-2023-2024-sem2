@@ -6,9 +6,10 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <vector>
+#include <cstdint>
+#include "GameObject.h"
 
-constexpr int WINDOW_POS_X = 360;
-constexpr int WINDOW_POS_Y = 50;
+
 
 constexpr int BOARD_SIZE_X = 8;
 constexpr int BOARD_SIZE_Y = 9;
@@ -16,26 +17,33 @@ constexpr int BOARD_SIZE_Y = 9;
 
 class Game {
 private:
-    struct GameObject {
-            sf::Sprite sprite;
-            sf::Texture texture;
-            sf::Vector2f position;
-            sf::Vector2f scale;
-    };
-
-private:
     sf::RenderWindow window;
 
-    std::vector<GameObject> tiles;
+    // tot ce desenam pe obiectul window retinem in memorie
+    std::vector<GameTile> tiles;
     GameObject backgroundImage;
     GameObject scoreBar;
-    GameObject board[BOARD_SIZE_X][BOARD_SIZE_Y];
-
+    // ar fi bine sa alocam dinamic obiecte foarte mari precum tabla de joc!!
+    GameTile board[BOARD_SIZE_X][BOARD_SIZE_Y];
+    // variabile interne ale clasei care tin cont de starea jocului
     bool shouldUpdateState;
+    bool isMovingAnimationOn;
+    bool isSwapping;
     int level;
+    int numClicks;
+    uint64_t score;
+    sf::IntRect boardRect;
+    // pozitiile unde a dat utilizatorul click-ul
+    int x0, y0;
+    int x1, y1;
+    sf::Vector2i mousePos;
+    // trebuie sa definim si ceva care tine cont de cand s-a terminat nivelul
+    // un prag de scor, un numar de bomboane distruse, depinde, vedem ulterior
+
 public:
-    Game(unsigned int width, unsigned int height, std::string title);
+    Game(unsigned int posX, unsigned int posY, unsigned int width, unsigned int height, std::string title);
     void Play(void);
+
 private:
     void HandleEvents(void);
     void UpdateGameState(void);
@@ -45,9 +53,20 @@ private:
     void LoadAssets(void);
     void LoadGameObjectFromFile(const std::string& filePath, GameObject& gameObject);
     void DisplayWindow(void);
-    void DisplayBoard(void);
+    void DrawBoard(void);
     void ClearWindow(void);
+
+    // adaugate astazi 
+    bool IsCollisionOnCreation(GameTile& tile, int i, int j) const;
+    bool CheckCombo(GameTile& tile, int x1, int y1, int x0, int y0) const;
     static std::string EventTypeToString(sf::Event::EventType& eventType);
+
+    void MouseClickUpdateCallback(void);
+    void MatchFinding(void);
+    void MovingAnimationOnSwap(void);
+    void DeletingAnimation(void);
+    void CheckNoMatch(void);
+    void UpdateBoard(void);
 };
 
 #endif /* _GAME_H_ */
