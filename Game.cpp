@@ -422,8 +422,8 @@ std::string Game::EventTypeToString(sf::Event::EventType& eventType)
 void Game::MouseClickUpdateCallback(void)
 {
 
-    // currentTilePosition.x = START_X + i * TILE_WIDTH  * SCALE_X + i * PADDING;
-    // currentTilePosition.y = START_Y + j * TILE_HEIGHT * SCALE_Y + j * PADDING;
+    // currentTilePosition.x = START_X + i * (TILE_WIDTH  * SCALE_X + PADDING);
+    // currentTilePosition.y = START_Y + j * (TILE_HEIGHT * SCALE_Y + PADDING);
     // aflam prin formula inversa
     int x = (mousePos.x - START_X) / (SCALE_X * TILE_WIDTH  + PADDING);
     int y = (mousePos.y - START_Y) / (SCALE_Y * TILE_HEIGHT + PADDING);
