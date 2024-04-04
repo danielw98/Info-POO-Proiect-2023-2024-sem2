@@ -25,6 +25,7 @@ private:
     GameObject scoreBar;
     // ar fi bine sa alocam dinamic obiecte foarte mari precum tabla de joc!!
     GameTile board[BOARD_SIZE_X][BOARD_SIZE_Y];
+    GameTilePosition destinationAfterSwap[2];
     // variabile interne ale clasei care tin cont de starea jocului
     bool shouldUpdateState;
     bool isMovingAnimationOn;
@@ -62,6 +63,7 @@ private:
     static std::string EventTypeToString(sf::Event::EventType& eventType);
 
     void MouseClickUpdateCallback(void);
+    void SwapPieces(GameTile& piece1, GameTile& piece2);
     void MatchFinding(void);
     void MovingAnimationOnSwap(void);
     void DeletingAnimation(void);
